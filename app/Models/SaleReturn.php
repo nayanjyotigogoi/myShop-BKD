@@ -36,4 +36,11 @@ class SaleReturn extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    //Invoice
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
 }

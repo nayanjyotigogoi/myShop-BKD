@@ -15,12 +15,13 @@ class Sale extends Model
         'discount',
         'total',
         'bill_number',
-        // 'user_id', // later if needed
     ];
 
     protected $casts = [
         'sale_date' => 'datetime',
     ];
+
+    protected $appends = ['refund_total', 'net_total'];
 
     public function items()
     {
@@ -32,9 +33,12 @@ class Sale extends Model
         return $this->hasMany(SaleReturn::class);
     }
 
-    // App\Models\Sale.php
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 
-    protected $appends = ['refund_total', 'net_total'];
+    /* ================= COMPUTED ================= */
 
     public function getRefundTotalAttribute()
     {
@@ -46,5 +50,40 @@ class Sale extends Model
         return max(0, $this->total - $this->refund_total);
     }
 
+    //customer
+    public function customer()
+{
+    return $this->belongsTo(Customer::class);
+}
+
+public function payments()
+{
+    return $this->hasMany(Payment::class);
+}
+
+/* ===== COMPUTED ===== */
+
+public function getPaidAmountAttribute()
+{
+    return $this->payments()->sum('amount');
+}
+
+public function getDueAmountAttribute()
+{
+    return max(0, $this->total - $this->paid_amount);
+}
+
+public function getPaymentStatusAttribute()
+{
+    if ($this->paid_amount <= 0) {
+        return 'unpaid';
+    }
+
+    if ($this->paid_amount < $this->total) {
+        return 'partial';
+    }
+
+    return 'paid';
+}
 
 }

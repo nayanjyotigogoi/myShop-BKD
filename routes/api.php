@@ -10,8 +10,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\SaleReturnController;
-
-
+use App\Http\Controllers\Api\InvoiceController;
 /*
 |--------------------------------------------------------------------------
 | Public API routes
@@ -26,6 +25,9 @@ Route::post('/login', [AuthController::class, 'login']);
 | Protected API routes (auth:sanctum via Bearer token)
 |--------------------------------------------------------------------------
 */
+Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
+Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
 

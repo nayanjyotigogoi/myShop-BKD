@@ -8,6 +8,8 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SaleReturn;
 use App\Models\SaleReturnItem;
+use App\Models\Invoice;
+use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +27,7 @@ class SaleReturnController extends Controller
     }
 
     /**
-     * Create a sale return
+     * Create a sale return + credit note
      */
     public function store(Request $request, Sale $sale)
     {
@@ -40,55 +42,37 @@ class SaleReturnController extends Controller
         return DB::transaction(function () use ($sale, $validated, $request) {
 
             $refundTotal = 0;
+            $requestQtyTracker = [];
 
-            /**
-             * 1️⃣ Create Sale Return (initial)
-             */
             $saleReturn = SaleReturn::create([
                 'sale_id'        => $sale->id,
                 'return_date'    => now(),
-                'refund_amount'  => 0, // temporary
+                'refund_amount'  => 0,
                 'refund_method'  => $validated['refund_method'] ?? null,
                 'reason'         => $validated['reason'] ?? null,
-                'created_by'     => $request->user()->id,
+                'created_by'     => $request->user()->id ?? null,
             ]);
-
-            /**
-             * 2️⃣ Process return items
-             *     - Prevent over-return
-             *     - Prevent duplicate item returns in same request
-             */
-            $requestQtyTracker = [];
 
             foreach ($validated['items'] as $itemData) {
 
-                // Ensure sale item belongs to this sale
                 $saleItem = SaleItem::where('id', $itemData['sale_item_id'])
                     ->where('sale_id', $sale->id)
                     ->firstOrFail();
 
-                // Already returned qty (previous returns)
                 $alreadyReturned = SaleReturnItem::where('sale_item_id', $saleItem->id)
                     ->sum('quantity');
 
-                // Track qty within this request (prevents duplicates)
                 $requestQtyTracker[$saleItem->id] =
                     ($requestQtyTracker[$saleItem->id] ?? 0) + $itemData['quantity'];
 
                 $availableQty = $saleItem->quantity - $alreadyReturned;
 
                 if ($requestQtyTracker[$saleItem->id] > $availableQty) {
-                    abort(
-                        422,
-                        "Return quantity exceeds available quantity for product ID {$saleItem->product_id}"
-                    );
+                    abort(422, 'Return quantity exceeds available quantity');
                 }
 
                 $lineTotal = $saleItem->unit_price * $itemData['quantity'];
 
-                /**
-                 * Create Sale Return Item
-                 */
                 SaleReturnItem::create([
                     'sale_return_id' => $saleReturn->id,
                     'sale_item_id'   => $saleItem->id,
@@ -98,26 +82,34 @@ class SaleReturnController extends Controller
                     'line_total'     => $lineTotal,
                 ]);
 
-                /**
-                 * ✅ STOCK ROLLBACK
-                 */
                 Product::where('id', $saleItem->product_id)
                     ->increment('current_stock', $itemData['quantity']);
 
                 $refundTotal += $lineTotal;
             }
 
-            /**
-             * 3️⃣ Finalize refund amount
-             */
             $saleReturn->update([
                 'refund_amount' => $refundTotal,
             ]);
 
-            return response()->json([
-                'success'        => true,
+            /* ================= CREDIT NOTE ================= */
+
+            Invoice::create([
+                'invoice_number' => InvoiceService::generate('return'),
+                'invoice_type'   => 'return',
+                'sale_id'        => $sale->id,
+                'sale_return_id' => $saleReturn->id,
+                'invoice_date'   => now(),
+                'gross_amount'   => $sale->subtotal,
+                'discount'       => $sale->discount,
                 'refund_amount'  => $refundTotal,
-                'return'         => $saleReturn->load('items.product'),
+                'net_amount'     => max(0, $sale->total - $refundTotal),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'refund_amount' => $refundTotal,
+                'return' => $saleReturn->load('items.product'),
             ], 201);
         });
     }

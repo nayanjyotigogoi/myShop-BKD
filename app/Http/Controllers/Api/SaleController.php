@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SaleReturnItem;
+use App\Models\Invoice;
+use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +37,6 @@ class SaleController extends Controller
             ->orderBy('sale_date', 'desc')
             ->get();
 
-        // Compute net_total per sale
         $sales->each(function ($sale) {
             $sale->refund_total = (float) ($sale->refund_total ?? 0);
             $sale->net_total = max(0, $sale->total - $sale->refund_total);
@@ -45,7 +46,7 @@ class SaleController extends Controller
     }
 
     /**
-     * Store a new sale.
+     * Store a new sale + invoice.
      */
     public function store(Request $request)
     {
@@ -62,6 +63,7 @@ class SaleController extends Controller
         $sale = null;
 
         DB::transaction(function () use (&$sale, $validated) {
+
             $discount = (float) ($validated['discount'] ?? 0);
 
             $sale = Sale::create([
@@ -75,6 +77,7 @@ class SaleController extends Controller
             $subtotal = 0;
 
             foreach ($validated['items'] as $itemData) {
+
                 $product   = Product::findOrFail($itemData['product_id']);
                 $quantity  = (int) $itemData['quantity'];
                 $unitPrice = (float) $itemData['unit_price'];
@@ -107,30 +110,42 @@ class SaleController extends Controller
                 'subtotal' => $subtotal,
                 'total'    => max(0, $subtotal - $discount),
             ]);
+
+            /* ================= INVOICE ================= */
+
+            Invoice::create([
+                'invoice_number' => InvoiceService::generate('sale'),
+                'invoice_type'   => 'sale',
+                'sale_id'        => $sale->id,
+                'invoice_date'   => $sale->sale_date,
+                'gross_amount'   => $sale->subtotal,
+                'discount'       => $sale->discount,
+                'refund_amount'  => 0,
+                'net_amount'     => $sale->total,
+            ]);
         });
 
-        $sale->load('items.product');
+        $sale->load('items.product', 'invoices');
 
         return response()->json($sale, Response::HTTP_CREATED);
     }
 
     /**
-     * Show a single sale with returns & net totals.
+     * Show a single sale with returns, invoices & net totals.
      */
     public function show(Sale $sale)
     {
         $sale->load([
             'items.product',
             'returns.items.product',
+            'invoices',
         ]);
 
-        // Remaining qty per item
         $sale->items->each(function ($item) {
             $returnedQty = SaleReturnItem::where('sale_item_id', $item->id)->sum('quantity');
             $item->remaining_qty = max(0, $item->quantity - $returnedQty);
         });
 
-        // Totals
         $refundTotal = $sale->returns()->sum('refund_amount');
 
         $sale->refund_total = (float) $refundTotal;
