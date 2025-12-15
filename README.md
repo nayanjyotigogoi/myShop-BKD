@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A modern <b>shop management system</b> for handling <b>sales, discounts, stock, users, and reports</b> through a clean API-driven architecture.
+  A modern shop management system built to manage sales, discounts, stock, users, and reports using a clean API-driven architecture.
 </p>
 
 <p align="center">
@@ -13,69 +13,75 @@
   <img src="https://img.shields.io/badge/Status-Active-success" />
 </p>
 
----
+## About MyShop
 
-## 📌 About MyShop
+MyShop is a full-stack shop management application designed to handle real-world retail workflows. The system focuses on practical business logic where products can have different selling prices, discounts can be applied at the item level, and a single sale can include multiple items with or without discounts. The goal of the project is to digitize daily shop operations while keeping the system simple, scalable, and easy to use.
 
-**MyShop** is a full-stack shop management application designed to digitize and simplify daily shop operations.
+## Key Features
 
-It allows shop owners and staff to:
-- Manage products and stock
-- Create sales with **item-level discounts**
-- Track real selling prices (not just MRP)
-- View sales summaries and reports
-- Control access via user roles
+- Sales management with support for multiple items per sale  
+- Item-level discount handling and actual selling price tracking  
+- Product and stock management with automatic stock updates  
+- Role-based access for admin and sales users  
+- Sales summaries and basic reporting  
+- Secure RESTful API architecture  
 
-The project is built with a **Laravel backend** and a **Next.js frontend**, following clean architecture and real-world business logic.
+## Tech Stack
 
----
+Backend: Laravel, PHP, MySQL, Eloquent ORM, REST APIs  
+Frontend: Next.js, React, Tailwind CSS, JavaScript  
+Tools: Git, GitHub, Postman, Curl, Vite, Turbopack  
 
-## 🚀 Key Features
+## Project Structure
 
-- 🧾 **Sales Management**
-  - Multiple items per sale
-  - Per-item discount support
-  - Actual selling price tracking
+myShop/  
+├── backend/        Laravel API  
+│   ├── app/  
+│   ├── routes/  
+│   ├── database/  
+│  
+├── frontend/       Next.js application  
+│   ├── app/  
+│   ├── components/  
+│   ├── services/  
+│  
+└── README.md  
 
-- 📦 **Product & Stock Control**
-  - Stock quantity updates on sale
-  - Low-stock visibility (future scope)
+## Setup Instructions
 
-- 👥 **User Roles**
-  - Admin / Super Admin / Sales user
-  - Secure API authentication
+Clone the repository  
+git clone https://github.com/your-username/myShop.git  
+cd myShop  
 
-- 📊 **Reports & Dashboard**
-  - Sales summaries by date
-  - Item count & quantity insights
+Backend setup  
+cd backend  
+composer install  
+cp .env.example .env  
+php artisan key:generate  
+php artisan migrate  
+php artisan serve  
 
-- 🔐 **Secure API Architecture**
-  - RESTful endpoints
-  - Token-based authentication
+Frontend setup  
+cd frontend  
+npm install  
+npm run dev  
 
----
+## Business Logic
 
-## 🛠️ Tech Stack
+The system is designed to reflect real shop behavior where the MRP of a product may differ from the actual selling price. Discounts can be applied individually to each item within a sale, and a single sale can contain both discounted and non-discounted items. Stock quantities are updated automatically based on sales, ensuring accurate inventory tracking.
 
-### Backend
-- **Laravel**
-- PHP
-- MySQL
-- REST APIs
-- Eloquent ORM
+## Project Status
 
-### Frontend
-- **Next.js**
-- React
-- Tailwind CSS
-- JavaScript / TypeScript
+The project is actively under development with plans to add advanced reporting, analytics, invoice generation, and enhanced role-based permissions.
 
-### Tools
-- Git & GitHub
-- Postman / Curl
-- Vite / Turbopack
+## License
 
----
+This project is open-source and licensed under the MIT License.
 
-## 📂 Project Structure (High Level)
+## Author
 
+Nayanjyoti Gogoi  
+Full-Stack Laravel Developer & SAP ABAP Consultant  
+Email: nayanjyoti2724@gmail.com  
+LinkedIn: https://linkedin.com/in/nayanjyotigogoi  
+Portfolio: https://nayanjyotigogoi.github.io/nayanjyotigogoi
