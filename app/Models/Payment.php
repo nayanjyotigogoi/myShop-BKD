@@ -13,6 +13,7 @@ class Payment extends Model
         'payment_method',
         'payment_date',
         'reference_no',
+        'receipt_no',   // ✅ REQUIRED
     ];
 
     protected $casts = [
@@ -20,13 +21,26 @@ class Payment extends Model
         'payment_date' => 'datetime',
     ];
 
-    public function sale()
-    {
-        return $this->belongsTo(Sale::class);
-    }
+    /* ================= RELATIONS ================= */
 
     public function customer()
     {
         return $this->belongsTo(Customer::class);
     }
+
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
+
+    public function saleReturn()
+    {
+        return $this->belongsTo(SaleReturn::class);
+    }
+
+    public static function generateReceiptNo(): string
+    {
+        return 'RCPT-' . now()->format('YmdHis');
+    }
+
 }

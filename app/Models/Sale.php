@@ -15,13 +15,28 @@ class Sale extends Model
         'discount',
         'total',
         'bill_number',
+        'customer_id',
     ];
 
     protected $casts = [
         'sale_date' => 'datetime',
+        'subtotal'  => 'decimal:2',
+        'discount'  => 'decimal:2',
+        'total'     => 'decimal:2',
     ];
 
-    protected $appends = ['refund_total', 'net_total'];
+    /**
+     * These values are derived and returned in API responses
+     */
+    protected $appends = [
+        'refund_total',
+        'net_total',
+        'paid_amount',
+        'due_amount',
+        'payment_status',
+    ];
+
+    /* ================= RELATIONS ================= */
 
     public function items()
     {
@@ -33,57 +48,77 @@ class Sale extends Model
         return $this->hasMany(SaleReturn::class);
     }
 
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
     public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
+{
+    return $this->hasMany(Invoice::class);
+}
 
-    /* ================= COMPUTED ================= */
 
-    public function getRefundTotalAttribute()
-    {
-        return $this->returns()->sum('refund_amount');
-    }
-
-    public function getNetTotalAttribute()
-    {
-        return max(0, $this->total - $this->refund_total);
-    }
-
-    //customer
     public function customer()
-{
-    return $this->belongsTo(Customer::class);
-}
-
-public function payments()
-{
-    return $this->hasMany(Payment::class);
-}
-
-/* ===== COMPUTED ===== */
-
-public function getPaidAmountAttribute()
-{
-    return $this->payments()->sum('amount');
-}
-
-public function getDueAmountAttribute()
-{
-    return max(0, $this->total - $this->paid_amount);
-}
-
-public function getPaymentStatusAttribute()
-{
-    if ($this->paid_amount <= 0) {
-        return 'unpaid';
+    {
+        return $this->belongsTo(Customer::class);
     }
 
-    if ($this->paid_amount < $this->total) {
-        return 'partial';
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
     }
 
-    return 'paid';
-}
+    /* ================= COMPUTED ATTRIBUTES ================= */
 
+    /**
+     * Total refunded amount (from sale returns)
+     */
+    public function getRefundTotalAttribute(): float
+    {
+        return (float) $this->returns()->sum('refund_amount');
+    }
+
+    /**
+     * Net total after returns
+     */
+    public function getNetTotalAttribute(): float
+    {
+        $total = (float) ($this->total ?? 0);
+        $refund = (float) $this->refund_total;
+
+        return max(0, $total - $refund);
+    }
+
+    /**
+     * Total amount paid (all payments)
+     */
+    public function getPaidAmountAttribute(): float
+    {
+        return (float) $this->payments()->sum('amount');
+    }
+
+    /**
+     * Due amount after payments & returns
+     */
+    public function getDueAmountAttribute(): float
+    {
+        return max(0, $this->net_total - $this->paid_amount);
+    }
+
+    /**
+     * Payment status derived from net total
+     */
+    public function getPaymentStatusAttribute(): string
+    {
+        if ($this->paid_amount <= 0) {
+            return 'unpaid';
+        }
+
+        if ($this->paid_amount < $this->net_total) {
+            return 'partial';
+        }
+
+        return 'paid';
+    }
 }

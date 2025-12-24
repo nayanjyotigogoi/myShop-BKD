@@ -43,4 +43,10 @@ class SaleReturn extends Model
         return $this->hasOne(Invoice::class);
     }
 
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+
 }

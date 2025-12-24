@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\SaleReturnController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\ReceiptController;
 /*
 |--------------------------------------------------------------------------
 | Public API routes
@@ -27,6 +30,20 @@ Route::post('/login', [AuthController::class, 'login']);
 */
 Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
 Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download']);
+
+
+Route::post('/payments', [PaymentController::class, 'store']);
+Route::get('/payments', [PaymentController::class, 'index']);
+
+
+
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::get('/receipts/{payment}/print', [ReceiptController::class, 'print']);
+//     Route::get('/receipts/{payment}/download', [ReceiptController::class, 'download']);
+// });
+
+
+
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -54,5 +71,16 @@ Route::middleware('auth:sanctum')->group(function () {
     //Return
     Route::post('/sales/{sale}/returns', [SaleReturnController::class, 'store']);
     Route::get('/sales/{sale}/returns', [SaleReturnController::class, 'index']);
+
+    //Customer
+    Route::apiResource('customers', CustomerController::class);
+    //settlement
+    Route::post('/payments/settle', [PaymentController::class, 'settle']);
+    Route::get('/customers/{customer}/payments', [CustomerController::class, 'payments']);
+
+    //receipts
+    Route::get('/receipts/{payment}/print', [ReceiptController::class, 'print']);
+    Route::get('/receipts/{payment}/download', [ReceiptController::class, 'download']);
+
 
 });

@@ -9,9 +9,16 @@ class Customer extends Model
     protected $fillable = [
         'name',
         'phone',
-        'gstin',
-        'credit_limit',
+        'email',
+        'address',
+        'due_balance',
     ];
+
+    protected $casts = [
+        'due_balance' => 'decimal:2',
+    ];
+
+    /* ================= RELATIONS ================= */
 
     public function sales()
     {

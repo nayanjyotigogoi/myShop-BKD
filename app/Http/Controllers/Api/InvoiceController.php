@@ -11,45 +11,40 @@ class InvoiceController extends Controller
 {
     private function fileName(Invoice $invoice): string
     {
-        // Invoice date (fallback safe)
         $date = optional($invoice->created_at)->format('Y-m-d')
             ?? Carbon::now()->format('Y-m-d');
 
-        $shopName = 'MyShop'; // filesystem safe
+        $shopName = 'MyShop';
         $invoiceNo = $invoice->invoice_number;
 
-        // Detect invoice type
-        $type = 'SALE';
-        if ($invoice->saleReturn) {
-            $type = 'RETURN';
-        }
+        $type = $invoice->saleReturn ? 'RETURN' : 'SALE';
 
         return "{$date}_{$shopName}_{$type}_{$invoiceNo}.pdf";
     }
 
     public function print(Invoice $invoice)
     {
-        $invoice->load(['sale.items.product', 'saleReturn.items.product']);
+        $invoice->load([
+            'sale.items.product',
+            'sale.payments',   // REQUIRED
+            'saleReturn.items.product',
+        ]);
 
-        $pdf = Pdf::loadView('invoices.a4', [
-            'invoice' => $invoice,
-        ])->setPaper('a4');
-
-        return $pdf->stream(
-            $this->fileName($invoice)
-        );
+        return Pdf::loadView('invoices.a4', compact('invoice'))
+            ->setPaper('a4')
+            ->stream($this->fileName($invoice));
     }
 
     public function download(Invoice $invoice)
     {
-        $invoice->load(['sale.items.product', 'saleReturn.items.product']);
+        $invoice->load([
+            'sale.items.product',
+            'sale.payments',
+            'saleReturn.items.product',
+        ]);
 
-        $pdf = Pdf::loadView('invoices.a4', [
-            'invoice' => $invoice,
-        ])->setPaper('a4');
-
-        return $pdf->download(
-            $this->fileName($invoice)
-        );
+        return Pdf::loadView('invoices.a4', compact('invoice'))
+            ->setPaper('a4')
+            ->download($this->fileName($invoice));
     }
 }
