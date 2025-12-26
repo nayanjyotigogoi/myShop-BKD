@@ -56,6 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('purchases', PurchaseController::class)
         ->only(['index', 'show', 'store']);
+    Route::put('/purchases/{purchase}', [PurchaseController::class, 'update']);
+
 
     Route::apiResource('sales', SaleController::class)
         ->only(['index', 'show', 'store']);

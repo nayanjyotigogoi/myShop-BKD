@@ -9,8 +9,6 @@ class PurchaseItem extends Model
 {
     use HasFactory;
 
-    use HasFactory;
-
     protected $fillable = [
         'purchase_id',
         'product_id',
