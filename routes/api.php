@@ -62,10 +62,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('sales', SaleController::class)
         ->only(['index', 'show', 'store']);
 
-    Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+    // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 
-    Route::get('reports/daily', [ReportController::class, 'daily']);
-    Route::get('reports/top-products', [ReportController::class, 'topProducts']);
+    // Route::get('reports/daily', [ReportController::class, 'daily']);
+    // // Route::get('reports/top-products', [ReportController::class, 'topProducts']);
+
+    // Route::get('summary', [ReportController::class, 'summary']);
+    // Route::get('chart', [ReportController::class, 'chart']);
+    // Route::get('top-products', [ReportController::class, 'topProducts']);
+
+    Route::prefix('reports')->group(function () {
+        Route::get('summary', [ReportController::class, 'summary']);
+        Route::get('chart', [ReportController::class, 'chart']);
+        Route::get('top-products', [ReportController::class, 'topProducts']);
+    });
+
 
     Route::get('settings', [SettingController::class, 'show']);
     Route::put('settings', [SettingController::class, 'update']);

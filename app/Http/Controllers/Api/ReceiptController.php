@@ -17,19 +17,17 @@ class ReceiptController extends Controller
 
     public function print($receiptNo)
     {
-        $payments = Payment::where('receipt_no', $receiptNo)
+        $payment = Payment::where('receipt_no', $receiptNo)
             ->with([
                 'customer',
                 'sale.invoice',
-                'saleReturn.invoice', // ✅ added
+                'saleReturn.invoice',
             ])
-            ->get();
-
-        abort_if($payments->isEmpty(), 404);
+            ->firstOrFail(); // ✅ ONE payment only
 
         return Pdf::loadView('receipts.a4', [
-                'payments'  => $payments,
-                'receiptNo' => $receiptNo,
+                'payment'  => $payment,
+                'receiptNo'=> $receiptNo,
             ])
             ->setPaper('a4')
             ->stream($this->fileName($receiptNo));
@@ -37,19 +35,17 @@ class ReceiptController extends Controller
 
     public function download($receiptNo)
     {
-        $payments = Payment::where('receipt_no', $receiptNo)
+        $payment = Payment::where('receipt_no', $receiptNo)
             ->with([
                 'customer',
                 'sale.invoice',
-                'saleReturn.invoice', // ✅ added
+                'saleReturn.invoice',
             ])
-            ->get();
-
-        abort_if($payments->isEmpty(), 404);
+            ->firstOrFail();
 
         return Pdf::loadView('receipts.a4', [
-                'payments'  => $payments,
-                'receiptNo' => $receiptNo,
+                'payment'  => $payment,
+                'receiptNo'=> $receiptNo,
             ])
             ->setPaper('a4')
             ->download($this->fileName($receiptNo));

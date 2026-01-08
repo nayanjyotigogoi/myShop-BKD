@@ -33,9 +33,6 @@ class SaleController extends Controller
      */
     public function store(Request $request)
     {
-        /* =====================================================
-         * 🔍 DEBUG 1: RAW REQUEST (CRITICAL)
-         * ===================================================== */
         Log::info('SALE RAW REQUEST', $request->all());
 
         $validated = $request->validate([
@@ -52,26 +49,14 @@ class SaleController extends Controller
 
         return DB::transaction(function () use ($request, $validated) {
 
-            /* =====================================================
-             * NORMALIZE INPUT
-             * ===================================================== */
             $customerId = !empty($validated['customer_id'])
                 ? (int) $validated['customer_id']
                 : null;
 
             $discount = (float) ($validated['discount'] ?? 0);
+            $paidNow  = (float) $request->input('paid_now', 0);
 
-            // ✅ IMPORTANT FIX: read paid_now directly from request
-            $paidNow = (float) $request->input('paid_now', 0);
-
-            /* =====================================================
-             * 🔍 DEBUG 2: NORMALIZED VALUES
-             * ===================================================== */
-            Log::info('SALE NORMALIZED VALUES', [
-                'customer_id' => $customerId,
-                'discount'    => $discount,
-                'paid_now'    => $paidNow,
-            ]);
+            Log::info('SALE NORMALIZED VALUES', compact('customerId', 'discount', 'paidNow'));
 
             /* =====================================================
              * CREATE SALE
@@ -82,6 +67,11 @@ class SaleController extends Controller
                 'discount'    => $discount,
                 'total'       => 0,
                 'customer_id' => $customerId,
+
+                // ❌ COMMENTED (27.12.2025)
+                // payment_status MUST NOT be stored.
+                // It is now a derived attribute in Sale model.
+                // 'payment_status' => 'unpaid',
             ]);
 
             /* =====================================================
@@ -97,16 +87,23 @@ class SaleController extends Controller
                     abort(422, 'Insufficient stock for product: ' . $product->name);
                 }
 
-                $lineTotal = $item['quantity'] * $item['unit_price'];
+                // ✅ COST & PROFIT CALCULATION (VALID – KEEP)
+                $unitCost   = (float) $product->buy_price;
+                $lineCost   = $unitCost * $item['quantity'];
+                $lineTotal  = $item['quantity'] * $item['unit_price'];
+                $lineProfit = $lineTotal - $lineCost;
+
                 $subtotal += $lineTotal;
 
                 SaleItem::create([
-                    'sale_id'    => $sale->id,
-                    'product_id' => $product->id,
-                    'mrp'        => $product->sell_price,
-                    'quantity'   => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'line_total' => $lineTotal,
+                    'sale_id'     => $sale->id,
+                    'product_id'  => $product->id,
+                    'mrp'         => $product->sell_price,
+                    'unit_cost'   => $unitCost,
+                    'unit_price'  => $item['unit_price'],
+                    'quantity'    => $item['quantity'],
+                    'line_total'  => $lineTotal,
+                    'line_profit' => $lineProfit,
                 ]);
 
                 $product->decrement('current_stock', $item['quantity']);
@@ -116,6 +113,10 @@ class SaleController extends Controller
              * TOTALS
              * ===================================================== */
             $total = max(0, $subtotal - $discount);
+
+            if ($paidNow > $total) {
+                abort(422, 'Payment cannot exceed sale total');
+            }
 
             $sale->update([
                 'subtotal' => $subtotal,
@@ -139,56 +140,49 @@ class SaleController extends Controller
             /* =====================================================
              * PAYMENT AT SALE TIME
              * ===================================================== */
-if ($paidNow > 0) {
+            if ($paidNow > 0) {
 
-    if (!$customerId) {
-        abort(422, 'Customer is required when payment is made');
-    }
-
-    Payment::create([
-        'receipt_no'     => Payment::generateReceiptNo(),
-        'sale_id'        => $sale->id,
-        'customer_id'    => $customerId,
-        'amount'         => $paidNow,
-        'payment_method' => $validated['payment_method'] ?? 'cash',
-        'payment_date'   => now(),
-    ]);
-
-    Log::info('SALE PAYMENT CREATED', [
-        'sale_id' => $sale->id,
-        'amount'  => $paidNow,
-    ]);
-}
-
-            /* =====================================================
-             * CUSTOMER DUE
-             * ===================================================== */
-            if ($customerId) {
-
-                $due = max(0, $total - $paidNow);
-
-                if ($due > 0) {
-                    Customer::where('id', $customerId)
-                        ->increment('due_balance', $due);
-
-                    /* 🔍 DEBUG 4: DUE UPDATED */
-                    Log::info('CUSTOMER DUE UPDATED', [
-                        'customer_id' => $customerId,
-                        'due_added'   => $due,
-                    ]);
+                if (!$customerId) {
+                    abort(422, 'Customer is required when payment is made');
                 }
+
+                Payment::create([
+                    'receipt_no'     => Payment::generateReceiptNo(),
+                    'sale_id'        => $sale->id,
+                    'customer_id'    => $customerId,
+                    'amount'         => $paidNow,
+                    'payment_method' => $validated['payment_method'] ?? 'cash',
+                    'payment_date'   => now(),
+                ]);
             }
 
             /* =====================================================
-             * RESPONSE
+             * CUSTOMER DUE (VALID – KEEP)
              * ===================================================== */
+            $due = max(0, $total - $paidNow);
+
+            if ($customerId && $due > 0) {
+                Customer::where('id', $customerId)
+                    ->increment('due_balance', $due);
+            }
+
+            /* =====================================================
+             * PAYMENT STATUS UPDATE
+             * ===================================================== */
+
+            // ❌ COMMENTED (27.12.2025)
+            // payment_status is DERIVED from payments & returns.
+            // Updating it here causes desync.
+            /*
+            $sale->update([
+                'payment_status' => $paidNow >= $total
+                    ? 'paid'
+                    : ($paidNow > 0 ? 'partial' : 'unpaid'),
+            ]);
+            */
+
             return response()->json(
-                $sale->load([
-                    'items.product',
-                    'payments',
-                    'customer',
-                    'invoices',
-                ]),
+                $sale->load(['items.product', 'payments', 'customer', 'invoices']),
                 Response::HTTP_CREATED
             );
         });
